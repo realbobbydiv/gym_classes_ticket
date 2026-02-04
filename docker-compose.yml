@@ -1,0 +1,61 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: event-ticket-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--username",
+          "admin",
+          "--password",
+          "password",
+          "--authenticationDatabase",
+          "admin",
+          "--eval",
+          "db.adminCommand('ping')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - event-ticket-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: event-ticket-api
+    ports:
+      - "5127:5127"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5127
+
+      Mongo__ConnectionString: "mongodb://admin:password@mongodb:27017/?authSource=admin"
+      Mongo__DatabaseName: "event_ticketing_db"
+
+      Ticketing__MaxTicketsPerUser: "5"
+      Ticketing__ServiceFeePercent: "0.00"
+      Ticketing__AllowPurchasesAfterStart: "false"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - event-ticket-network
+
+volumes:
+  mongo_data:
+
+networks:
+  event-ticket-network:
+    driver: bridge
