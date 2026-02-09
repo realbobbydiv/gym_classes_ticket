@@ -1,95 +1,60 @@
-# Event Ticketing System
+# Gym Class Booking System
 
-Layered ASP.NET Core Web API for managing events and selling tickets, backed by MongoDB and containerized with Docker.
+Layered ASP.NET Core Web API for managing gym class sessions and booking spots. Uses MongoDB, Serilog-friendly logging, Swagger, health checks, Mapster, FluentValidation, and xUnit + Moq tests. Docker compose spins up API + Mongo.
 
 ## Project Layout
 
 ```
-event_ticket_system.sln        Solution entry
-Dockerfile                     API container image
-docker-compose.yml             API + MongoDB stack
-global.json                    .NET SDK pin
-
+gym_class_booking_system.sln
+Dockerfile
+docker-compose.yml
 src/
-  EventTicketing.Host/         Presentation layer (ASP.NET Core)
-    Controllers/               HTTP endpoints (Events, Tickets, Ping)
-    Dtos/                      Request models used by controllers
-    Options/                   App/Mongo/Ticketing configuration objects
-    Program.cs                 Startup & DI wiring (Swagger, health checks)
-    appsettings*.json          Environment configuration
-
-  EventTicketing.BL/           Business logic layer
-    Dtos/                      Cross-layer DTOs (Event, User, Purchase)
-    Services/                  Core workflows (EventsService, TicketService)
-    Interfaces/                Service contracts
-    Exceptions/                Domain/business exceptions
-
-  EventTicketing.DAL/          Data access layer
-    Entities/                  MongoDB entities (EventEntity, UserEntity)
-    Interfaces/                Repository contracts
-    Repositories/              Mongo-backed repositories
-    Mongo/                     MongoContext wrapper
-
+  GymClassBooking.Host/   # ASP.NET Core host (controllers, DI, options)
+  GymClassBooking.BL/     # Business layer (services, DTOs, options)
+  GymClassBooking.DAL/    # Data layer (Mongo context + repositories)
 tests/
-  EventTicketing.Tests/        xUnit tests for ticket purchasing logic
-    TicketServiceTests.cs      Happy-path + insufficient-tickets cases
+  GymClassBooking.Tests/  # xUnit + Moq tests for business logic
 ```
 
-## Architecture Highlights
+## Running locally
 
-- Clean layering: Host (API) depends on BL, which depends on DAL; repositories isolate Mongo concerns.
-- Health & Swagger: `/health` returns JSON status; Swagger UI enabled by default for quick exploration.
-- Ticket flow: `TicketsController -> TicketService -> Repositories`, enforcing business rules (active event, stock, valid user).
-- Event CRUD: `EventsController` exposes list/get/create/update/delete over Mongo-backed events.
-
-## Running Locally (without Docker)
-
-1) Start MongoDB (local or container):
+1) Start MongoDB (or rely on docker-compose):
 ```bash
 docker run -d --name mongo -p 27017:27017 mongo:7
 ```
 2) Run the API:
 ```bash
-dotnet run --project src/EventTicketing.Host
+dotnet run --project src/GymClassBooking.Host
 ```
-3) Browse Swagger: http://localhost:5127/swagger
+Swagger: http://localhost:5127/swagger
+Health: http://localhost:5127/health
 
-## Running with Docker Compose
-
+## Docker Compose
 ```bash
-docker-compose up --build   # API + Mongo
-docker-compose down         # stop
+docker-compose up --build
 ```
+Exposes API on port 5127 and MongoDB on 27017.
 
 ## Configuration
+App settings (env vars supported):
+- `Mongo:ConnectionString`
+- `Mongo:DatabaseName`
+- `Booking:MaxSpotsPerUser`
+- `Booking:BookingFeePercent` (decimal fraction)
+- `Booking:AllowBookingAfterStart`
 
-`appsettings.Development.json` (overrides `appsettings.json`) carries sensible defaults. Key settings:
-- `Mongo:ConnectionString`, `Mongo:DatabaseName`
-- `Ticketing:MaxTicketsPerUser`, `Ticketing:ServiceFeePercent`, `Ticketing:AllowPurchasesAfterStart`
+## API Surface
+- `GET  /api/ping`
+- `GET  /health`
+- `GET  /api/classes`
+- `GET  /api/classes/{id}`
+- `POST /api/classes`
+- `PUT  /api/classes/{id}`
+- `DELETE /api/classes/{id}`
+- `POST /api/bookings/book` with body `{ userId, classSessionId, quantity }`
 
-Environment variables override the same keys in containerized runs.
-
-## API Surface (default port 5127)
-
-- `GET  /api/ping`                 liveness probe
-- `GET  /health`                  Mongo health check
-- `GET  /api/events`              list events
-- `GET  /api/events/{id}`         fetch event
-- `POST /api/events`              create event
-- `PUT  /api/events/{id}`         update event
-- `DELETE /api/events/{id}`       delete event
-- `POST /api/tickets/purchase`    buy tickets `{ userId, eventId, quantity }`
-
-## Testing
-
+## Tests
 ```bash
 dotnet test
 ```
-xUnit suite covers `TicketService` (happy path and insufficient inventory). Extend with integration tests via `EventTicketing.Host.http` if needed.
-
-## Tech Stack
-
-- .NET 10, ASP.NET Core Web API
-- MongoDB (MongoDB.Driver)
-- xUnit + Moq for testing
-- Docker / Docker Compose for containerized runs
+Covers booking happy-path and insufficient-spots cases.

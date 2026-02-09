@@ -1,7 +1,7 @@
 services:
   mongodb:
     image: mongo:7
-    container_name: event-ticket-mongo
+    container_name: gym-class-mongo
     ports:
       - "27017:27017"
     environment:
@@ -28,34 +28,30 @@ services:
       retries: 5
       start_period: 5s
     networks:
-      - event-ticket-network
+      - gym-class-network
 
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: event-ticket-api
+    container_name: gym-class-api
     ports:
       - "5127:5127"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:5127
-
       Mongo__ConnectionString: "mongodb://admin:password@mongodb:27017/?authSource=admin"
-      Mongo__DatabaseName: "event_ticketing_db"
-
-      Ticketing__MaxTicketsPerUser: "5"
-      Ticketing__ServiceFeePercent: "0.00"
-      Ticketing__AllowPurchasesAfterStart: "false"
+      Mongo__DatabaseName: "gym_class_booking_db"
+      Booking__MaxSpotsPerUser: "5"
+      Booking__BookingFeePercent: "0.00"
+      Booking__AllowBookingAfterStart: "false"
     depends_on:
       mongodb:
         condition: service_healthy
     networks:
-      - event-ticket-network
+      - gym-class-network
 
 volumes:
   mongo_data:
 
 networks:
-  event-ticket-network:
+  gym-class-network:
     driver: bridge
